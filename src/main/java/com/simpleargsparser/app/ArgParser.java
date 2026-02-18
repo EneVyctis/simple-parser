@@ -7,71 +7,13 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
+import com.simpleargsparser.app.Structs.Cmd;
+import com.simpleargsparser.app.Structs.Flag;
+
 public class ArgParser {
     
     public ArgParser(String[] args){
         this.args = Arrays.asList(args);
-    }
-
-    public class Flag {
-        private String name;
-        private boolean hasArgument;
-        private boolean isCompulsory;
-        private String arg;
-
-        public Flag(String name, boolean hasArgument, boolean isCompulsory){
-            this.name = name;
-            this.hasArgument = hasArgument;
-            this.isCompulsory = isCompulsory;
-        } 
-
-        public String getName(){
-            return this.name;
-        }
-        
-        public void setArg(String arg){
-            this.arg = arg;
-        }
-
-        public String getArg(){
-            return this.arg;
-        }
-
-        public boolean hasArgument(){
-            return this.hasArgument;
-        }
-
-        public boolean isCompulsory(){
-            return this.isCompulsory;
-        }
-    }
-
-    public class Cmd {
-        private String name;
-        private int numberOfArgs;
-        private List<String> args;
-
-        public Cmd(String name, int numberOfArgs){
-            this.name = name;
-            this.numberOfArgs = numberOfArgs;
-            this.args = new ArrayList<>();
-        }
-
-        public String getName(){
-            return this.name;
-        }
-
-        public int getNumberOfArgs(){
-            return this.numberOfArgs;
-        }
-
-        public List<String> getArgs(){
-            return List.copyOf(this.args);
-        }
-
-        public void addArg(String arg){
-            this.args.add(arg);
-        }
     }
 
     private List<String> args = new ArrayList<>();
@@ -82,18 +24,26 @@ public class ArgParser {
     private Map<String, Flag> alloWedflags = new HashMap<>();
     private Map<String, Cmd> allowedCmd = new HashMap<>();
 
+    /**
+     * Parse the line of arguments, detects the first command that appears as the command, flags if they start with "-". consider everything else as command arguments.
+     * @throws IllegalArgumentException
+     */
     public void Parse() throws IllegalArgumentException {
         
         Iterator<String> iter = args.iterator();
         while(iter.hasNext()){
             String arg = iter.next();
+            if(arg.matches("--help") || arg.matches("-h") || args.isEmpty()){
+                displayHelpBasedOnContext();
+                break;
+            }
             if(this.cmd == null && allowedCmd.containsKey(arg)){
                 Cmd templateCmd = allowedCmd.get(arg);
                 this.cmd = new Cmd(arg, templateCmd.getNumberOfArgs());
             }
             else if(arg.startsWith("-") && alloWedflags.containsKey(arg)){
                 Flag templateFlag = alloWedflags.get(arg);
-                Flag flag = new Flag(arg, templateFlag.hasArgument(), templateFlag.isCompulsory());
+                Flag flag = new Flag(arg, templateFlag.hasArgument(), templateFlag.isCompulsory(), "");
                 flags.put(arg, flag);
                 if(iter.hasNext() && flag.hasArgument()){
                     arg = iter.next();
@@ -113,7 +63,11 @@ public class ArgParser {
         checkParsingValidity();
     }
 
+    // Check the parsing validity based on some criterias: A command should exist and have the proper number of arguments. Mandatory flags are presents...
     private void checkParsingValidity() throws IllegalArgumentException{
+        if(cmd == null){
+            throw new IllegalArgumentException("No command provided, a command must be provided");
+        }
         if(cmd.getNumberOfArgs() != -1 && cmd.getNumberOfArgs() != cmd.getArgs().size()){
             throw new IllegalArgumentException("Unrequired number of arguments for the command "+ cmd.getName()+ " needed " + cmd.getNumberOfArgs() + " given "+cmd.getArgs().size());
         }
@@ -125,11 +79,37 @@ public class ArgParser {
 
     }
 
+    private void displayHelpBasedOnContext(){
+        if(cmd != null){
+            System.out.println(cmd.getDescription());
+        }
+        else{
+            System.out.printf("List of commands %n%n");
+            allowedCmd.forEach((k,v) ->{
+                System.out.printf("%s : %s %n", k,v.getDescription());
+            });
+            System.out.println("List of flags %n%n");
+            alloWedflags.forEach((k,v) -> {
+                System.out.printf("%s : %s %n",k,v.getDescription());
+            });
+        }
+    }
+
+    /**
+     * Return the argument of the flag corresponding to the given name or throws an error if the flag does not exist.
+     * @param flagName
+     * @return
+     * @throws IllegalArgumentException
+     */
     public String getFlagArg(String flagName) throws IllegalArgumentException{
         if(flags.containsKey(flagName))  return flags.get(flagName).getArg();
         else throw new IllegalArgumentException("Flag does not exist");
     }
 
+    /**
+     * Returns a List of the command arguments
+     * @return
+     */
     public List<String> getCmdArgs(){
         return cmd.getArgs();
     }
@@ -142,12 +122,20 @@ public class ArgParser {
         return this.flags;
     }
 
-    public void addFlag(String name, boolean hasArgument, boolean isCompulsory){
-        this.alloWedflags.put(name, new Flag(name, hasArgument, isCompulsory));
+    /**
+     * Add a flag to the list of the allowed flags
+     * @param flag
+     */
+    public void addFlag(Flag flag){
+        this.alloWedflags.put(flag.getName(), flag);
     }
 
-    public void addCmd(String name, int numberOfArgs){
-        this.allowedCmd.put(name, new Cmd(name, numberOfArgs));
+    /**
+     * Add a command to the list of the allowed commands
+     * @param cmd
+     */
+    public void addCmd(Cmd cmd){
+        this.allowedCmd.put(cmd.getName(), cmd);
     }
 
 }

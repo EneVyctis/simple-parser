@@ -1,7 +1,9 @@
 package com.simpleargsparser.app;
 
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+
+import com.simpleargsparser.app.Structs.Cmd;
+import com.simpleargsparser.app.Structs.Flag;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -15,7 +17,7 @@ public class ArgParserTest {
     public void testParseSingleCommandWithArgs() {
         String[] args = {"add", "file1", "file2"};
         parser = new ArgParser(args);
-        parser.addCmd("add", 2);
+        parser.addCmd(Cmd.named("add").withNumberOfArgs(2));
         parser.Parse();
         List<String> cmdArgs = parser.getCmdArgs();
         assertEquals(2, cmdArgs.size());
@@ -27,8 +29,8 @@ public class ArgParserTest {
     public void testParseFlagWithoutArgWithCommand() {
         String[] args = {"-v", "add", "file1", "file2"};
         parser = new ArgParser(args);
-        parser.addFlag("-v", false, false);
-        parser.addCmd("add", 2);
+        parser.addFlag(Flag.named("-v"));
+        parser.addCmd(Cmd.named("add").withNumberOfArgs(2));
         parser.Parse();
         assertTrue(parser.getFlags().containsKey("-v"));
         assertNull(parser.getFlags().get("-v").getArg());
@@ -38,8 +40,8 @@ public class ArgParserTest {
     public void testParseFlagWithArgWithCommand() {
         String[] args = {"-f", "input.txt", "add", "file1", "file2"};
         parser = new ArgParser(args);
-        parser.addFlag("-f", true, false);
-        parser.addCmd("add", 2);
+        parser.addFlag(Flag.named("-f").withArgument());
+        parser.addCmd(Cmd.named("add").withNumberOfArgs(2));
         parser.Parse();
         assertTrue(parser.getFlags().containsKey("-f"));
         assertEquals("input.txt", parser.getFlags().get("-f").getArg());
@@ -49,8 +51,8 @@ public class ArgParserTest {
     public void testMissingCompulsoryFlag() {
         String[] args = {"add", "file1", "file2"};
         parser = new ArgParser(args);
-        parser.addFlag("-o", true, true);
-        parser.addCmd("add", 2);
+        parser.addFlag(Flag.named("-o").withArgument().compulsory());
+        parser.addCmd(Cmd.named("add").withNumberOfArgs(2));
         assertThrows(IllegalArgumentException.class, () -> parser.Parse());
     }
 
@@ -58,7 +60,7 @@ public class ArgParserTest {
     public void testUnknownFlag() {
         String[] args = {"-x", "add", "file1", "file2"};
         parser = new ArgParser(args);
-        parser.addCmd("add", 2);
+        parser.addCmd(Cmd.named("add").withNumberOfArgs(2));
         assertThrows(IllegalArgumentException.class, () -> parser.Parse());
     }
 
@@ -66,9 +68,9 @@ public class ArgParserTest {
     public void testFlagMissingArg() {
         String[] args = {"-f", "-v", "add", "file1", "file2"};
         parser = new ArgParser(args);
-        parser.addFlag("-f", true, false);
-        parser.addFlag("-v", false, false);
-        parser.addCmd("add", 2);
+        parser.addFlag(Flag.named("-f").withArgument());
+        parser.addFlag(Flag.named("-v"));
+        parser.addCmd(Cmd.named("add").withNumberOfArgs(2));
         assertThrows(IllegalArgumentException.class, () -> parser.Parse());
     }
 
@@ -80,10 +82,19 @@ public class ArgParserTest {
     }
 
     @Test
+    public void testNoCommand() {
+        String[] args = {"-test"};
+        parser = new ArgParser(args);
+        parser.addCmd(Cmd.named("add").withAnyNumberOfArgs());
+        parser.addFlag(Flag.named("-test").compulsory());
+        assertThrows(IllegalArgumentException.class, () -> parser.Parse());
+    }
+
+    @Test
     public void testWrongNumberOfArgsForCommand() {
         String[] args = {"add", "file1"};
         parser = new ArgParser(args);
-        parser.addCmd("add", 2);
+        parser.addCmd(Cmd.named("add").withNumberOfArgs(2));
         assertThrows(IllegalArgumentException.class, () -> parser.Parse());
     }
 
@@ -91,7 +102,7 @@ public class ArgParserTest {
     public void testAnyNumberOfArgsForCommand() {
         String[] args = {"add", "file1", "file2", "file3","file4"};
         parser = new ArgParser(args);
-        parser.addCmd("add", -1);
+        parser.addCmd(Cmd.named("add").withAnyNumberOfArgs());
         parser.Parse();
         assertEquals(4, parser.getCmd().getArgs().size());
     }
@@ -100,8 +111,8 @@ public class ArgParserTest {
     public void testGetFlagArg() {
         String[] args = {"-f", "input.txt", "add", "file1", "file2"};
         parser = new ArgParser(args);
-        parser.addFlag("-f", true, false);
-        parser.addCmd("add", 2);
+        parser.addFlag(Flag.named("-f").withArgument());
+        parser.addCmd(Cmd.named("add").withNumberOfArgs(2));
         parser.Parse();
         assertEquals("input.txt", parser.getFlagArg("-f"));
     }
@@ -110,8 +121,8 @@ public class ArgParserTest {
     public void testGetFlagArgUnknownFlag() {
         String[] args = {"-f", "input.txt", "add", "file1", "file2"};
         parser = new ArgParser(args);
-        parser.addFlag("-f", true, false);
-        parser.addCmd("add", 2);
+        parser.addFlag(Flag.named("-f").withArgument());
+        parser.addCmd(Cmd.named("add").withNumberOfArgs(2));
         parser.Parse();
         assertThrows(IllegalArgumentException.class, () -> parser.getFlagArg("-x"));
     }
